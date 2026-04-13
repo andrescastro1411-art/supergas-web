@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<!-- ===== 7.1.0 DOCUMENTO ADMIN ===== -->
+<html lang="es">
+<head>
+    <!-- ===== 7.1.1 METADATOS ===== -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - Supergas de Nariño</title>
+    
+    <!-- ===== 7.1.2 FUENTES Y ESTILOS ===== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- ===== 7.1.3 CHART.JS PARA GRÁFICAS ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- ===== 7.1.4 ESTILOS DEL PANEL ADMIN ===== -->
+    <style>
+        /* ===== 7.1.4.1 RESET ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #F8FAFC;
+            color: #1E293B;
+        }
+
+        /* ===== 7.1.4.2 LAYOUT PRINCIPAL ===== */
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ===== 7.1.4.3 SIDEBAR ===== */
+        .sidebar {
+            width: 280px;
+            background: #1E293B;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.3rem;
+        }
+
+        .sidebar-header p {
+            font-size: 0.85rem;
+            color: #94A3B8;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1.5rem 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            color: #CBD5E1;
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+            cursor: pointer;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 1.1rem;
+        }
+
+        .nav-item:hover {
+            background: #334155;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #FF5C00;
+            color: white;
+            border-left-color: white;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #334155;
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.8rem 1rem;
+            background: #334155;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #EF4444;
+        }
+
+        /* ===== 7.1.4.4 CONTENIDO PRINCIPAL ===== */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .page-title h1 {
+            font-size: 1.5rem;
+            color: #1E293B;
+        }
+
+        .page-title p {
+            color: #64748B;
+            font-size: 0.9rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: #FF5C00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        /* ===== 7.1.4.5 TARJETAS DE ESTADÍSTICAS ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .stat-info h3 {
+            font-size: 0.9rem;
+            color: #64748B;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1E293B;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,92,0,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #FF5C00;
+        }
+
+        /* ===== 7.1.4.6 GRÁFICAS ===== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 1rem;
+            color: #1E293B;
+            font-size: 1.1rem;
+        }
+
+        .chart-card h3 i {
+            color: #FF5C00;
+            margin-right: 0.5rem;
+        }
+
+        /* ===== 7.1.4.7 SECCIÓN DE BÚSQUEDA ===== */
+        .search-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: 2px solid #E2E8F0;
+            border-radius: 50px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #FF5C00;
+            box-shadow: 0 0 0 3px rgba(255,92,0,0.1);
+        }
+
+        .search-box button {
+            padding: 1rem 2rem;
+            background: #FF5C00;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .search-box button:hover {
+            background: #E65300;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(255,92,0,0.3);
+        }
+
+        /* ===== 7.1.4.8 TABLA DE PQRS ===== */
+        .table-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-header h2 {
+            font-size: 1.2rem;
+            color: #1E293B;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            background: #F8FAFC;
+            color: #64748B;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #E2E8F0;
+            color: #1E293B;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-pendiente {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .status-resuelto {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .status-proceso {
+            background: #DBEAFE;
+            color: #1E40AF;
+        }
+
+        .status-rechazado {
+            background: #FEE2E2;
+            color: #B91C1C;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-view {
+            padding: 0.5rem 1rem;
+            background: #FF5C00;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .btn-view:hover {
+            background: #E65300;
+            transform: translateY(-2px);
+        }
+
+        .btn-respond {
+            padding: 0.5rem 1rem;
+            background: #317F3C;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .btn-respond:hover {
+            background: #3E9A4B;
+            transform: translateY(-2px);
+        }
+
+        /* ===== 7.1.4.9 MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 30px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #E2E8F0;
+        }
+
+        .modal-header h3 {
+            color: #1E293B;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748B;
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-row {
+            display: flex;
+            margin-bottom: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .detail-label {
+            width: 120px;
+            font-weight: 600;
+            color: #64748B;
+        }
+
+        .detail-value {
+            flex: 1;
+            color: #1E293B;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #1E293B;
+        }
+
+        .form-group select,
+        .form-group textarea,
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #E2E8F0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group input[type="file"] {
+            padding: 0.5rem;
+            border: 2px dashed #FF5C00;
+            background: #FFF8F0;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 1rem;
+            background: #FF5C00;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save:hover {
+            background: #E65300;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(255,92,0,0.3);
+        }
+
+        /* ===== 7.1.4.10 SECCIONES DE TRANSPARENCIA ===== */
+        .transparencia-admin-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .secciones-lista {
+            margin-top: 1rem;
+        }
+
+        .seccion-card {
+            background: #F8FAFC;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #E2E8F0;
+        }
+
+        .seccion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .seccion-titulo-admin {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1E293B;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .seccion-numero-badge {
+            background: #FF5C00;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+        }
+
+        .subsecciones-lista {
+            margin-top: 1rem;
+            padding-left: 1rem;
+            border-left: 2px solid #E2E8F0;
+        }
+
+        .subseccion-item-admin {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .subseccion-info-admin {
+            flex: 1;
+        }
+
+        .subseccion-nombre-admin {
+            font-weight: 600;
+            color: #1E293B;
+        }
+
+        .subseccion-link-admin {
+            font-size: 0.8rem;
+            color: #64748B;
+            word-break: break-all;
+        }
+
+        .subseccion-link-admin a {
+            color: #FF5C00;
+            text-decoration: none;
+        }
+
+        .btn-add-sub {
+            background: #317F3C;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        /* ===== 7.1.4.11 RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                overflow: hidden;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== 7.1.5 CONTENEDOR PRINCIPAL ===== -->
+    <div class="admin-container">
+        <!-- ===== 7.1.6 SIDEBAR CON NAVEGACIÓN MEJORADA ===== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>SUPERGAS</h2>
+                <p>Panel Administrativo</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" id="nav-dashboard" onclick="loadDashboard(); return false;">
+                    <i class="fas fa-dashboard"></i>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item" id="nav-pqrs" onclick="loadPqrsSection(); return false;">
+                    <i class="fas fa-file-alt"></i>
+                    PQRS
+                </a>
+                <a href="#" class="nav-item" id="nav-documentos" onclick="loadDocumentosSection(); return false;">
+                    <i class="fas fa-file-pdf"></i>
+                    Documentos Legales
+                </a>
+                <a href="#" class="nav-item" id="nav-transparencia" onclick="loadTransparenciaSection(); return false;">
+                    <i class="fas fa-file-contract"></i>
+                    Transparencia
+                </a>
+                <a href="#" class="nav-item" id="nav-usuarios" onclick="showDevelopmentMessage('Usuarios'); return false;">
+                    <i class="fas fa-users"></i>
+                    Usuarios
+                </a>
+                <a href="#" class="nav-item" id="nav-estadisticas" onclick="showDevelopmentMessage('Estadísticas'); return false;">
+                    <i class="fas fa-chart-line"></i>
+                    Estadísticas
+                </a>
+                <a href="#" class="nav-item" id="nav-config" onclick="showDevelopmentMessage('Configuración'); return false;">
+                    <i class="fas fa-cog"></i>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <a href="/admin/logout" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </a>
+            </div>
+        </aside>
+
+        <!-- ===== 7.1.7 CONTENIDO PRINCIPAL ===== -->
+        <main class="main-content">
+            <!-- ===== 7.1.7.1 BARRA SUPERIOR ===== -->
+            <div class="top-bar">
+                <div class="page-title">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p id="page-subtitle">Bienvenido de vuelta, Administrador</p>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                </div>
+            </div>
+
+            <!-- ===== 7.1.7.2 TARJETAS DE ESTADÍSTICAS ===== -->
+            <div class="stats-grid" id="stats-section">
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>Total PQRS</h3>
+                        <span class="stat-number" id="total-pqrs">0</span>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>Pendientes</h3>
+                        <span class="stat-number" id="pendientes">0</span>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>En Proceso</h3>
+                        <span class="stat-number" id="proceso">0</span>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>Resueltas</h3>
+                        <span class="stat-number" id="resueltas">0</span>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 7.1.7.3 GRÁFICAS DE ESTADÍSTICAS ===== -->
+            <div class="charts-grid" id="charts-section">
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-pie"></i> PQRS por Estado</h3>
+                    <canvas id="estadosChart" style="width: 100%; height: 250px;"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-bar"></i> PQRS por Tipo</h3>
+                    <canvas id="tiposChart" style="width: 100%; height: 250px;"></canvas>
+                </div>
+            </div>
+
+            <!-- ===== 7.1.7.4 BÚSQUEDA ===== -->
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Buscar por radicado, nombre o email...">
+                    <button id="searchBtn">
+                        <i class="fas fa-search"></i>
+                        Buscar
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== 7.1.7.5 TABLA DE PQRS ===== -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h2 id="table-title"><i class="fas fa-file-alt"></i> Últimas PQRS</h2>
+                </div>
+                
+                <div class="table-container">
+                    <table id="pqrsTable">
+                        <thead>
+                            <tr>
+                                <th>Radicado</th>
+                                <th>Tipo</th>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pqrsTableBody">
+                            <!-- Los datos se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ===== 7.1.8 MODAL PARA VER DETALLE ===== -->
+    <div class="modal" id="viewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-alt"></i> Detalle de PQRS</h3>
+                <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="viewModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 7.1.9 MODAL PARA RESPONDER ===== -->
+    <div class="modal" id="respondModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-reply"></i> Responder PQRS</h3>
+                <button class="close-btn" onclick="closeModal('respondModal')">&times;</button>
+            </div>
+            <form id="respondForm">
+                <input type="hidden" id="respondId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Estado:</label>
+                        <select id="respondEstado" required>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Resuelto">Resuelto</option>
+                            <option value="Rechazado">Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Respuesta:</label>
+                        <textarea id="respondMensaje" required placeholder="Escriba su respuesta..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-paper-plane"></i>
+                        Enviar Respuesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== 7.1.10 MODAL PARA SECCIÓN ===== -->
+    <div class="modal" id="seccionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="seccionModalTitle">Nueva Sección</h3>
+                <button class="close-btn" onclick="closeModal('seccionModal')">&times;</button>
+            </div>
+            <form id="seccionForm">
+                <input type="hidden" id="seccionId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Número</label>
+                        <input type="number" id="seccionNumero" required placeholder="Ej: 1, 2, 3...">
+                    </div>
+                    <div class="form-group">
+                        <label>Título</label>
+                        <input type="text" id="seccionTitulo" required placeholder="Ej: Mecanismos de contacto">
+                    </div>
+                    <div class="form-group">
+                        <label>Orden</label>
+                        <input type="number" id="seccionOrden" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Activo</label>
+                        <select id="seccionActivo">
+                            <option value="1">Sí</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i> Guardar Sección
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== 7.1.11 MODAL PARA SUBSECCIÓN CON TIPO DE CONTENIDO ===== -->
+<div class="modal" id="subseccionModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 id="subseccionModalTitle">Nueva Subsección</h3>
+            <button class="close-btn" onclick="closeModal('subseccionModal')">&times;</button>
+        </div>
+        <form id="subseccionForm" enctype="multipart/form-data">
+            <input type="hidden" id="subseccionId">
+            <input type="hidden" id="subseccionSeccionId">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="subseccionNombre" required placeholder="Ej: Servicio al cliente">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de contenido</label>
+                    <select id="subseccionTipo" required onchange="cambiarTipoContenido()">
+                        <option value="enlace">🔗 Enlace web</option>
+                        <option value="email">📧 Correo electrónico</option>
+                        <option value="telefono">📞 Teléfono</option>
+                        <option value="texto">📝 Texto informativo</option>
+                        <option value="pdf">📄 Documento PDF</option>
+                    </select>
+                </div>
+                <div class="form-group" id="grupo-link">
+                    <label id="label-link">Enlace (URL)</label>
+                    <input type="text" id="subseccionLink" placeholder="https://... o mailto:... o tel:...">
+                    <small style="color: #64748B; display: block; margin-top: 0.25rem;">Ej: https://ejemplo.com | mailto:correo@ejemplo.com | tel:123456789</small>
+                </div>
+                <div class="form-group" id="grupo-pdf" style="display: none;">
+                    <label>Archivo PDF</label>
+                    <input type="file" id="subseccionArchivo" accept=".pdf">
+                    <small style="color: #64748B; display: block; margin-top: 0.25rem;">Solo archivos PDF. Dejar vacío para mantener el actual.</small>
+                    <div id="pdf-actual" style="margin-top: 0.5rem; font-size: 0.8rem; color: #317F3C;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Orden</label>
+                    <input type="number" id="subseccionOrden" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Activo</label>
+                    <select id="subseccionActivo">
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn-save">
+                    <i class="fas fa-save"></i> Guardar Subsección
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+    <!-- ===== 7.1.12 SCRIPTS ===== -->
+    <script>
+        // ===== VARIABLES GLOBALES =====
+        let currentPqrsId = null;
+        let charts = {};
+
+        // ===== FUNCIONES DE NAVEGACIÓN =====
+        function setActiveNav(navId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.getElementById(navId).classList.add('active');
+        }
+
+        function updateSectionTitle(title, subtitle = '') {
+            document.getElementById('page-title').textContent = title;
+            if (subtitle) {
+                document.getElementById('page-subtitle').textContent = subtitle;
+            }
+        }
+
+        function ocultarSeccionesDashboard() {
+            const stats = document.getElementById('stats-section');
+            const charts = document.getElementById('charts-section');
+            const search = document.querySelector('.search-section');
+            const table = document.querySelector('.table-section');
+            
+            if (stats) stats.style.display = 'none';
+            if (charts) charts.style.display = 'none';
+            if (search) search.style.display = 'none';
+            if (table) table.style.display = 'none';
+            
+            // Eliminar secciones dinámicas
+            const docsSection = document.querySelector('.documentos-admin-section');
+            if (docsSection) docsSection.remove();
+            
+            const transparenciaSection = document.querySelector('.transparencia-admin-section');
+            if (transparenciaSection) transparenciaSection.remove();
+            
+            const mensaje = document.querySelector('.chart-card[style*="text-align: center"]');
+            if (mensaje) mensaje.remove();
+        }
+
+        function mostrarSeccionesDashboard() {
+            const stats = document.getElementById('stats-section');
+            const charts = document.getElementById('charts-section');
+            const search = document.querySelector('.search-section');
+            const table = document.querySelector('.table-section');
+            
+            if (stats) stats.style.display = 'grid';
+            if (charts) charts.style.display = 'grid';
+            if (search) search.style.display = 'block';
+            if (table) table.style.display = 'block';
+        }
+
+        function showDevelopmentMessage(section) {
+            ocultarSeccionesDashboard();
+            updateSectionTitle(section, 'Sección en desarrollo');
+            
+            const mainContent = document.querySelector('.main-content');
+            const mensaje = document.createElement('div');
+            mensaje.className = 'chart-card';
+            mensaje.style.textAlign = 'center';
+            mensaje.style.padding = '4rem';
+            mensaje.innerHTML = `
+                <i class="fas fa-tools" style="font-size: 4rem; color: #FF5C00; margin-bottom: 1rem;"></i>
+                <h2 style="margin-bottom: 1rem;">Sección en Desarrollo</h2>
+                <p style="color: #64748B;">Estamos trabajando para ofrecerte esta funcionalidad pronto.</p>
+            `;
+            mainContent.insertBefore(mensaje, document.querySelector('.search-section'));
+        }
+
+        function loadDashboard() {
+            setActiveNav('nav-dashboard');
+            updateSectionTitle('Dashboard', 'Bienvenido de vuelta, Administrador');
+            mostrarSeccionesDashboard();
+            document.getElementById('table-title').innerHTML = '<i class="fas fa-file-alt"></i> Últimas PQRS';
+            loadStats();
+            loadPqrs();
+        }
+
+        function loadPqrsSection() {
+            setActiveNav('nav-pqrs');
+            updateSectionTitle('Gestión de PQRS', 'Todas las solicitudes');
+            mostrarSeccionesDashboard();
+            document.getElementById('table-title').innerHTML = '<i class="fas fa-file-alt"></i> Todas las PQRS';
+            loadStats();
+            loadAllPqrs();
+        }
+
+        async function loadAllPqrs() {
+            try {
+                const response = await fetch('/api/pqrs/listar');
+                const result = await response.json();
+                if (result.success) {
+                    renderPqrsTable(result.data);
+                }
+            } catch (error) {
+                console.error('Error cargando PQRS:', error);
+            }
+        }
+
+        // ===== CARGAR DATOS INICIALES =====
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
+
+        // ===== CARGAR ESTADÍSTICAS =====
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('total-pqrs').textContent = data.total || 0;
+                    
+                    let pendientes = 0, proceso = 0, resueltas = 0;
+                    data.por_estado.forEach(item => {
+                        if (item.estado === 'Pendiente') pendientes = item.count;
+                        else if (item.estado === 'En Proceso') proceso = item.count;
+                        else if (item.estado === 'Resuelto') resueltas = item.count;
+                    });
+                    
+                    document.getElementById('pendientes').textContent = pendientes;
+                    document.getElementById('proceso').textContent = proceso;
+                    document.getElementById('resueltas').textContent = resueltas;
+                    
+                    loadCharts();
+                }
+            } catch (error) {
+                console.error('Error cargando estadísticas:', error);
+            }
+        }
+
+        // ===== CARGAR GRÁFICAS =====
+        async function loadCharts() {
+            try {
+                Object.values(charts).forEach(chart => chart?.destroy());
+                
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    
+                    const estadosCtx = document.getElementById('estadosChart').getContext('2d');
+                    charts.estados = new Chart(estadosCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: data.por_estado.map(item => item.estado),
+                            datasets: [{
+                                data: data.por_estado.map(item => item.count),
+                                backgroundColor: ['#FEF3C7', '#DBEAFE', '#D1FAE5', '#FEE2E2'],
+                                borderColor: ['#92400E', '#1E40AF', '#065F46', '#B91C1C'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    });
+                    
+                    const tiposCtx = document.getElementById('tiposChart').getContext('2d');
+                    charts.tipos = new Chart(tiposCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.por_tipo.map(item => item.tipo),
+                            datasets: [{
+                                label: 'Cantidad',
+                                data: data.por_tipo.map(item => item.count),
+                                backgroundColor: '#FF5C00',
+                                borderRadius: 8
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando gráficas:', error);
+            }
+        }
+
+        // ===== CARGAR LISTA DE PQRS =====
+        async function loadPqrs(searchTerm = '') {
+            try {
+                let url = '/api/pqrs/listar';
+                if (searchTerm) {
+                    url = `/api/pqrs/buscar?q=${encodeURIComponent(searchTerm)}`;
+                }
+                const response = await fetch(url);
+                const result = await response.json();
+                if (result.success) {
+                    renderPqrsTable(result.data.slice(0, 10));
+                }
+            } catch (error) {
+                console.error('Error cargando PQRS:', error);
+            }
+        }
+
+        // ===== RENDERIZAR TABLA =====
+        function renderPqrsTable(pqrsList) {
+            const tbody = document.getElementById('pqrsTableBody');
+            tbody.innerHTML = '';
+            
+            if (pqrsList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No hay PQRS registradas</td></tr>';
+                return;
+            }
+            
+            pqrsList.forEach(pqrs => {
+                const fecha = new Date(pqrs.created_at).toLocaleDateString();
+                const estadoClass = getEstadoClass(pqrs.estado);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${pqrs.radicado}</strong></td>
+                    <td>${pqrs.tipo}</td>
+                    <td>${pqrs.nombre}</td>
+                    <td>${pqrs.email}</td>
+                    <td>${fecha}</td>
+                    <td><span class="status-badge ${estadoClass}">${pqrs.estado}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-view" onclick="viewPqrs(${pqrs.id})"><i class="fas fa-eye"></i></button>
+                            <button class="btn-respond" onclick="openRespondModal(${pqrs.id})"><i class="fas fa-reply"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getEstadoClass(estado) {
+            switch(estado) {
+                case 'Pendiente': return 'status-pendiente';
+                case 'En Proceso': return 'status-proceso';
+                case 'Resuelto': return 'status-resuelto';
+                case 'Rechazado': return 'status-rechazado';
+                default: return 'status-pendiente';
+            }
+        }
+
+        async function viewPqrs(id) {
+            try {
+                const response = await fetch(`/api/pqrs/${id}`);
+                const result = await response.json();
+                if (result.success) {
+                    const p = result.data;
+                    const fecha = new Date(p.created_at).toLocaleString();
+                    const html = `
+                        <div class="detail-row"><span class="detail-label">Radicado:</span><span class="detail-value"><strong>${p.radicado}</strong></span></div>
+                        <div class="detail-row"><span class="detail-label">Tipo:</span><span class="detail-value">${p.tipo}</span></div>
+                        <div class="detail-row"><span class="detail-label">Nombre:</span><span class="detail-value">${p.nombre}</span></div>
+                        <div class="detail-row"><span class="detail-label">Documento:</span><span class="detail-value">${p.documento}</span></div>
+                        <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value">${p.email}</span></div>
+                        <div class="detail-row"><span class="detail-label">Teléfono:</span><span class="detail-value">${p.telefono}</span></div>
+                        <div class="detail-row"><span class="detail-label">Asunto:</span><span class="detail-value">${p.asunto}</span></div>
+                        <div class="detail-row"><span class="detail-label">Mensaje:</span><span class="detail-value">${p.mensaje}</span></div>
+                        <div class="detail-row"><span class="detail-label">Fecha:</span><span class="detail-value">${fecha}</span></div>
+                        <div class="detail-row"><span class="detail-label">Estado:</span><span class="detail-value"><span class="status-badge ${getEstadoClass(p.estado)}">${p.estado}</span></span></div>
+                        ${p.respuesta ? `<div class="detail-row"><span class="detail-label">Respuesta:</span><span class="detail-value">${p.respuesta}</span></div>` : ''}
+                    `;
+                    document.getElementById('viewModalBody').innerHTML = html;
+                    openModal('viewModal');
+                }
+            } catch (error) {
+                console.error('Error cargando detalle:', error);
+            }
+        }
+
+        function openRespondModal(id) {
+            currentPqrsId = id;
+            document.getElementById('respondId').value = id;
+            document.getElementById('respondEstado').value = 'En Proceso';
+            document.getElementById('respondMensaje').value = '';
+            openModal('respondModal');
+        }
+
+        document.getElementById('respondForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('respondId').value;
+            const estado = document.getElementById('respondEstado').value;
+            const respuesta = document.getElementById('respondMensaje').value;
+            try {
+                const response = await fetch(`/api/pqrs/${id}/responder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado, respuesta })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Respuesta enviada correctamente');
+                    closeModal('respondModal');
+                    loadStats();
+                    if (document.getElementById('nav-dashboard').classList.contains('active')) {
+                        loadPqrs();
+                    } else {
+                        loadAllPqrs();
+                    }
+                } else {
+                    alert('Error al enviar respuesta');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            }
+        });
+
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (document.getElementById('nav-dashboard').classList.contains('active')) {
+                loadPqrs(searchTerm);
+            } else {
+                alert('Función de búsqueda avanzada próximamente');
+            }
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('searchBtn').click();
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        };
+
+        // ===== FUNCIONES PARA DOCUMENTOS LEGALES =====
+        function loadDocumentosSection() {
+            setActiveNav('nav-documentos');
+            updateSectionTitle('Documentos Legales', 'Gestionar documentos PDF');
+            ocultarSeccionesDashboard();
+            
+            const mainContent = document.querySelector('.main-content');
+            const existingDocs = document.querySelector('.documentos-admin-section');
+            if (existingDocs) existingDocs.remove();
+            
+            const docsSection = document.createElement('div');
+            docsSection.className = 'documentos-admin-section';
+            docsSection.style.padding = '2rem';
+            docsSection.style.background = 'white';
+            docsSection.style.borderRadius = '20px';
+            docsSection.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+            
+            docsSection.innerHTML = `
+                <div style="margin-bottom: 2rem;">
+                    <button onclick="showAddDocumentModal()" style="background: #FF5C00; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 50px; cursor: pointer;">
+                        <i class="fas fa-plus"></i> Subir nuevo documento
+                    </button>
+                </div>
+                <div id="documentos-list" style="min-height: 400px;">
+                    <p style="text-align: center; color: #64748B;">Cargando documentos...</p>
+                </div>
+            `;
+            
+            mainContent.insertBefore(docsSection, document.querySelector('.search-section'));
+            loadDocumentosList();
+        }
+
+        async function loadDocumentosList() {
+            try {
+                const response = await fetch('/api/documentos/admin/listar');
+                const result = await response.json();
+                if (result.success) {
+                    renderDocumentosTable(result.data);
+                }
+            } catch (error) {
+                console.error('Error cargando documentos:', error);
+            }
+        }
+
+        function renderDocumentosTable(documentos) {
+            const container = document.getElementById('documentos-list');
+            if (documentos.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #64748B; padding: 3rem;">No hay documentos. Sube el primero.</p>';
+                return;
+            }
+            
+            const documentosAspectos = documentos.filter(doc => doc.tipo === 'aspectos' || !doc.tipo);
+            const documentosCreg = documentos.filter(doc => doc.tipo === 'creg');
+            
+            let html = '';
+            
+            if (documentosCreg.length > 0) {
+                html += `<div style="margin-bottom: 2rem;"><h3 style="color: #FF5C00; margin-bottom: 1rem;"><i class="fas fa-file-pdf"></i> CREG 080</h3>`;
+                documentosCreg.forEach(doc => {
+                    html += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: #F8FAFC; border-radius: 10px; margin-bottom: 0.5rem;">
+                        <div><strong>${doc.nombre}</strong><br><small>${doc.descripcion || ''}</small></div>
+                        <div>
+                            <a href="/assets/documentos/${doc.archivo}" target="_blank" class="btn-view" style="background: #317F3C;"><i class="fas fa-eye"></i></a>
+                            <button onclick="editDocumento(${doc.id}, '${doc.tipo}', '${doc.categoria}', '${doc.nombre}', '${doc.descripcion || ''}', ${doc.orden}, ${doc.activo})" class="btn-view" style="background: #FF5C00;"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteDocumento(${doc.id})" class="btn-view" style="background: #EF4444;"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            
+            if (documentosAspectos.length > 0) {
+                html += `<div><h3 style="color: #1E293B; margin-bottom: 1rem;"><i class="fas fa-folder-open"></i> Aspectos Legales</h3>`;
+                documentosAspectos.forEach(doc => {
+                    html += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: #F8FAFC; border-radius: 10px; margin-bottom: 0.5rem;">
+                        <div><strong>${doc.nombre}</strong><br><small>${doc.categoria} - ${doc.descripcion || ''}</small></div>
+                        <div>
+                            <a href="/assets/documentos/${doc.archivo}" target="_blank" class="btn-view" style="background: #317F3C;"><i class="fas fa-eye"></i></a>
+                            <button onclick="editDocumento(${doc.id}, '${doc.tipo}', '${doc.categoria}', '${doc.nombre}', '${doc.descripcion || ''}', ${doc.orden}, ${doc.activo})" class="btn-view" style="background: #FF5C00;"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteDocumento(${doc.id})" class="btn-view" style="background: #EF4444;"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function showAddDocumentModal() {
+            const modalHtml = `
+                <div class="modal active" id="documentoModal">
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h3>Subir Nuevo Documento</h3>
+                            <button class="close-btn" onclick="closeDocumentoModal()">&times;</button>
+                        </div>
+                        <form id="documentoForm" enctype="multipart/form-data">
+                            <div class="modal-body">
+                                <div class="form-group"><label>Tipo</label><select id="docTipo" required><option value="aspectos">Aspectos Legales</option><option value="creg">CREG 080</option></select></div>
+                                <div class="form-group"><label>Categoría</label><select id="docCategoria" required><option value="">Seleccione...</option><option value="Cumplimiento normativo de usuarios">Cumplimiento normativo de usuarios</option><option value="Normatividad Vigente">Normatividad Vigente</option><option value="Tratamiento y política de datos">Tratamiento y política de datos</option><option value="Manual de manejo seguro de GLP">Manual de manejo seguro de GLP</option></select></div>
+                                <div class="form-group"><label>Nombre</label><input type="text" id="docNombre" required></div>
+                                <div class="form-group"><label>Descripción</label><textarea id="docDescripcion"></textarea></div>
+                                <div class="form-group"><label>Orden</label><input type="number" id="docOrden" value="0"></div>
+                                <div class="form-group"><label>Archivo PDF</label><input type="file" id="docArchivo" accept=".pdf" required></div>
+                            </div>
+                            <div class="modal-footer"><button type="submit" class="btn-save">Subir documento</button></div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('documentoForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('tipo', document.getElementById('docTipo').value);
+                formData.append('categoria', document.getElementById('docCategoria').value);
+                formData.append('nombre', document.getElementById('docNombre').value);
+                formData.append('descripcion', document.getElementById('docDescripcion').value);
+                formData.append('orden', document.getElementById('docOrden').value);
+                formData.append('archivo', document.getElementById('docArchivo').files[0]);
+                try {
+                    const response = await fetch('/api/documentos/crear', { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (result.success) { alert('Documento subido'); closeDocumentoModal(); loadDocumentosList(); }
+                    else { alert('Error: ' + result.error); }
+                } catch (error) { alert('Error de conexión'); }
+            });
+        }
+
+        function editDocumento(id, tipo, categoria, nombre, descripcion, orden, activo) {
+            const modalHtml = `
+                <div class="modal active" id="documentoModal">
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header"><h3>Editar Documento</h3><button class="close-btn" onclick="closeDocumentoModal()">&times;</button></div>
+                        <form id="documentoForm" enctype="multipart/form-data">
+                            <input type="hidden" id="docId" value="${id}">
+                            <div class="modal-body">
+                                <div class="form-group"><label>Tipo</label><select id="docTipo" required><option value="aspectos" ${tipo === 'aspectos' ? 'selected' : ''}>Aspectos Legales</option><option value="creg" ${tipo === 'creg' ? 'selected' : ''}>CREG 080</option></select></div>
+                                <div class="form-group"><label>Categoría</label><select id="docCategoria" required><option value="Cumplimiento normativo de usuarios" ${categoria === 'Cumplimiento normativo de usuarios' ? 'selected' : ''}>Cumplimiento normativo de usuarios</option><option value="Normatividad Vigente" ${categoria === 'Normatividad Vigente' ? 'selected' : ''}>Normatividad Vigente</option><option value="Tratamiento y política de datos" ${categoria === 'Tratamiento y política de datos' ? 'selected' : ''}>Tratamiento y política de datos</option><option value="Manual de manejo seguro de GLP" ${categoria === 'Manual de manejo seguro de GLP' ? 'selected' : ''}>Manual de manejo seguro de GLP</option></select></div>
+                                <div class="form-group"><label>Nombre</label><input type="text" id="docNombre" value="${nombre}"></div>
+                                <div class="form-group"><label>Descripción</label><textarea id="docDescripcion">${descripcion}</textarea></div>
+                                <div class="form-group"><label>Orden</label><input type="number" id="docOrden" value="${orden}"></div>
+                                <div class="form-group"><label>Activo</label><select id="docActivo"><option value="1" ${activo == 1 ? 'selected' : ''}>Sí</option><option value="0" ${activo == 0 ? 'selected' : ''}>No</option></select></div>
+                                <div class="form-group"><label>Reemplazar PDF</label><input type="file" id="docArchivo" accept=".pdf"></div>
+                            </div>
+                            <div class="modal-footer"><button type="submit" class="btn-save">Actualizar</button></div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('documentoForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('categoria', document.getElementById('docCategoria').value);
+                formData.append('nombre', document.getElementById('docNombre').value);
+                formData.append('descripcion', document.getElementById('docDescripcion').value);
+                formData.append('orden', document.getElementById('docOrden').value);
+                formData.append('activo', document.getElementById('docActivo').value);
+                formData.append('tipo', document.getElementById('docTipo').value);
+                const archivo = document.getElementById('docArchivo').files[0];
+                if (archivo) formData.append('archivo', archivo);
+                try {
+                    const response = await fetch(`/api/documentos/actualizar/${id}`, { method: 'PUT', body: formData });
+                    const result = await response.json();
+                    if (result.success) { alert('Documento actualizado'); closeDocumentoModal(); loadDocumentosList(); }
+                    else { alert('Error: ' + result.error); }
+                } catch (error) { alert('Error de conexión'); }
+            });
+        }
+
+        function closeDocumentoModal() { const modal = document.getElementById('documentoModal'); if (modal) modal.remove(); }
+        async function deleteDocumento(id) {
+            if (!confirm('¿Eliminar este documento?')) return;
+            try {
+                const response = await fetch(`/api/documentos/eliminar/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) { alert('Documento eliminado'); loadDocumentosList(); }
+                else { alert('Error al eliminar'); }
+            } catch (error) { alert('Error de conexión'); }
+        }
+
+        // ===== FUNCIONES PARA TRANSPARENCIA =====
+        function loadTransparenciaSection() {
+            setActiveNav('nav-transparencia');
+            updateSectionTitle('Transparencia', 'Gestionar secciones y contenido');
+            ocultarSeccionesDashboard();
+            
+            const mainContent = document.querySelector('.main-content');
+            const existingTrans = document.querySelector('.transparencia-admin-section');
+            if (existingTrans) existingTrans.remove();
+            
+            const transSection = document.createElement('div');
+            transSection.className = 'transparencia-admin-section';
+            transSection.innerHTML = `
+                <div style="margin-bottom: 2rem;">
+                    <button onclick="abrirModalSeccion()" style="background: #FF5C00; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 50px; cursor: pointer;">
+                        <i class="fas fa-plus"></i> Nueva Sección
+                    </button>
+                </div>
+                <div id="secciones-lista" style="min-height: 400px;">
+                    <p style="text-align: center; color: #64748B;">Cargando secciones...</p>
+                </div>
+            `;
+            mainContent.insertBefore(transSection, document.querySelector('.search-section'));
+            cargarSeccionesAdmin();
+        }
+
+        async function cargarSeccionesAdmin() {
+            const container = document.getElementById('secciones-lista');
+            try {
+                const response = await fetch('/api/transparencia/secciones/admin/listar');
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; padding: 3rem;"><p>No hay secciones. Crea la primera.</p></div>';
+                        return;
+                    }
+                    let html = '';
+                    for (const seccion of result.data) {
+                        html += `<div class="seccion-card" data-seccion-id="${seccion.id}">
+                            <div class="seccion-header">
+                                <div class="seccion-titulo-admin">
+                                    <span class="seccion-numero-badge">#${seccion.numero}</span>
+                                    <strong>${escapeHtml(seccion.titulo)}</strong>
+                                    ${seccion.activo === 0 ? '<span style="background:#EF4444; padding:2px 8px; border-radius:20px; font-size:0.7rem;">Inactivo</span>' : ''}
+                                </div>
+                                <div>
+                                    <button class="btn-view" onclick="editarSeccion(${seccion.id}, ${seccion.numero}, '${escapeHtml(seccion.titulo)}', ${seccion.orden}, ${seccion.activo})" style="background:#FF5C00;"><i class="fas fa-edit"></i></button>
+                                    <button class="btn-view" onclick="eliminarSeccion(${seccion.id})" style="background:#EF4444;"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <div class="subsecciones-lista" id="subsecciones-${seccion.id}">`;
+                        
+                        if (seccion.subsecciones && seccion.subsecciones.length > 0) {
+                            for (const sub of seccion.subsecciones) {
+                                html += `<div class="subseccion-item-admin">
+                                    <div class="subseccion-info-admin">
+                                        <div class="subseccion-nombre-admin">${escapeHtml(sub.nombre)}</div>
+                                        ${sub.link ? `<div class="subseccion-link-admin"><i class="fas fa-link"></i> <a href="${sub.link}" target="_blank">${escapeHtml(sub.link)}</a></div>` : '<div class="subseccion-link-admin"><i class="fas fa-info-circle"></i> Sin enlace</div>'}
+                                    </div>
+                                    <div>
+                                        <button class="btn-view" onclick="editarSubseccion(${sub.id}, ${seccion.id}, '${escapeHtml(sub.nombre)}', '${escapeHtml(sub.link || '')}', ${sub.orden}, ${sub.activo})" style="background:#FF5C00;"><i class="fas fa-edit"></i></button>
+                                        <button class="btn-view" onclick="eliminarSubseccion(${sub.id})" style="background:#EF4444;"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>`;
+                            }
+                        } else {
+                            html += `<div style="padding: 1rem; color: #64748B;">No hay subsecciones</div>`;
+                        }
+                        
+                        html += `<button class="btn-add-sub" onclick="abrirModalSubseccion(${seccion.id})"><i class="fas fa-plus"></i> Agregar subsección</button>
+                            </div>
+                        </div>`;
+                    }
+                    container.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 3rem;"><p>Error al cargar secciones</p></div>';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function abrirModalSeccion() {
+            document.getElementById('seccionModalTitle').textContent = 'Nueva Sección';
+            document.getElementById('seccionId').value = '';
+            document.getElementById('seccionNumero').value = '';
+            document.getElementById('seccionTitulo').value = '';
+            document.getElementById('seccionOrden').value = '0';
+            document.getElementById('seccionActivo').value = '1';
+            openModal('seccionModal');
+        }
+
+        function editarSeccion(id, numero, titulo, orden, activo) {
+            document.getElementById('seccionModalTitle').textContent = 'Editar Sección';
+            document.getElementById('seccionId').value = id;
+            document.getElementById('seccionNumero').value = numero;
+            document.getElementById('seccionTitulo').value = titulo;
+            document.getElementById('seccionOrden').value = orden;
+            document.getElementById('seccionActivo').value = activo;
+            openModal('seccionModal');
+        }
+
+        document.getElementById('seccionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('seccionId').value;
+            const formData = new FormData();
+            formData.append('numero', document.getElementById('seccionNumero').value);
+            formData.append('titulo', document.getElementById('seccionTitulo').value);
+            formData.append('orden', document.getElementById('seccionOrden').value);
+            formData.append('activo', document.getElementById('seccionActivo').value);
+            
+            try {
+                let url, method;
+                if (id) {
+                    url = `/api/transparencia/secciones/actualizar/${id}`;
+                    method = 'PUT';
+                } else {
+                    url = '/api/transparencia/secciones/crear';
+                    method = 'POST';
+                }
+                const response = await fetch(url, { method, body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Sección guardada');
+                    closeModal('seccionModal');
+                    cargarSeccionesAdmin();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        });
+
+        async function eliminarSeccion(id) {
+            if (!confirm('¿Eliminar esta sección? Se eliminarán todas sus subsecciones.')) return;
+            try {
+                const response = await fetch(`/api/transparencia/secciones/eliminar/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Sección eliminada');
+                    cargarSeccionesAdmin();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
+        function abrirModalSubseccion(seccionId, subseccion = null) {
+            document.getElementById('subseccionModalTitle').textContent = subseccion ? 'Editar Subsección' : 'Nueva Subsección';
+            document.getElementById('subseccionId').value = subseccion ? subseccion.id : '';
+            document.getElementById('subseccionSeccionId').value = seccionId;
+            document.getElementById('subseccionNombre').value = subseccion ? subseccion.nombre : '';
+            document.getElementById('subseccionLink').value = subseccion ? subseccion.link : '';
+            document.getElementById('subseccionOrden').value = subseccion ? subseccion.orden : '0';
+            document.getElementById('subseccionActivo').value = subseccion ? subseccion.activo : '1';
+            openModal('subseccionModal');
+        }
+
+        function editarSubseccion(id, seccionId, nombre, link, orden, activo) {
+            abrirModalSubseccion(seccionId, { id, nombre, link, orden, activo });
+        }
+
+        document.getElementById('subseccionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('subseccionId').value;
+            const formData = new FormData();
+            if (!id) formData.append('seccion_id', document.getElementById('subseccionSeccionId').value);
+            formData.append('nombre', document.getElementById('subseccionNombre').value);
+            formData.append('link', document.getElementById('subseccionLink').value);
+            formData.append('orden', document.getElementById('subseccionOrden').value);
+            formData.append('activo', document.getElementById('subseccionActivo').value);
+            
+            try {
+                let url, method;
+                if (id) {
+                    url = `/api/transparencia/subsecciones/actualizar/${id}`;
+                    method = 'PUT';
+                } else {
+                    url = '/api/transparencia/subsecciones/crear';
+                    method = 'POST';
+                }
+                const response = await fetch(url, { method, body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Subsección guardada');
+                    closeModal('subseccionModal');
+                    cargarSeccionesAdmin();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        });
+
+        async function eliminarSubseccion(id) {
+            if (!confirm('¿Eliminar esta subsección?')) return;
+            try {
+                const response = await fetch(`/api/transparencia/subsecciones/eliminar/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Subsección eliminada');
+                    cargarSeccionesAdmin();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
+        function cambiarTipoContenido() {
+    const tipo = document.getElementById('subseccionTipo').value;
+    const grupoLink = document.getElementById('grupo-link');
+    const grupoPdf = document.getElementById('grupo-pdf');
+    const labelLink = document.getElementById('label-link');
+    
+    if (tipo === 'pdf') {
+        grupoLink.style.display = 'none';
+        grupoPdf.style.display = 'block';
+    } else {
+        grupoLink.style.display = 'block';
+        grupoPdf.style.display = 'none';
+        
+        if (tipo === 'email') {
+            labelLink.textContent = 'Correo electrónico';
+            document.getElementById('subseccionLink').placeholder = 'ejemplo@correo.com';
+        } else if (tipo === 'telefono') {
+            labelLink.textContent = 'Número de teléfono';
+            document.getElementById('subseccionLink').placeholder = '3101234567';
+        } else if (tipo === 'texto') {
+            labelLink.textContent = 'Texto informativo';
+            document.getElementById('subseccionLink').placeholder = 'Escriba el texto que desea mostrar...';
+        } else {
+            labelLink.textContent = 'Enlace (URL)';
+            document.getElementById('subseccionLink').placeholder = 'https://...';
+        }
+    }
+}
+
+function abrirModalSubseccion(seccionId, subseccion = null) {
+    document.getElementById('subseccionModalTitle').textContent = subseccion ? 'Editar Subsección' : 'Nueva Subsección';
+    document.getElementById('subseccionId').value = subseccion ? subseccion.id : '';
+    document.getElementById('subseccionSeccionId').value = seccionId;
+    document.getElementById('subseccionNombre').value = subseccion ? subseccion.nombre : '';
+    document.getElementById('subseccionTipo').value = subseccion ? subseccion.tipo_contenido || 'enlace' : 'enlace';
+    document.getElementById('subseccionLink').value = subseccion ? subseccion.link || '' : '';
+    document.getElementById('subseccionOrden').value = subseccion ? subseccion.orden : '0';
+    document.getElementById('subseccionActivo').value = subseccion ? subseccion.activo : '1';
+    document.getElementById('subseccionArchivo').value = '';
+    
+    if (subseccion && subseccion.archivo_pdf) {
+        document.getElementById('pdf-actual').innerHTML = `<i class="fas fa-file-pdf"></i> PDF actual: ${subseccion.archivo_pdf}`;
+    } else {
+        document.getElementById('pdf-actual').innerHTML = '';
+    }
+    
+    cambiarTipoContenido();
+    openModal('subseccionModal');
+}
+
+function editarSubseccion(id, seccionId, nombre, link, orden, activo, tipo_contenido, archivo_pdf) {
+    abrirModalSubseccion(seccionId, { id, nombre, link, orden, activo, tipo_contenido, archivo_pdf });
+}
+
+document.getElementById('subseccionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('subseccionId').value;
+    const formData = new FormData();
+    if (!id) formData.append('seccion_id', document.getElementById('subseccionSeccionId').value);
+    formData.append('nombre', document.getElementById('subseccionNombre').value);
+    formData.append('tipo_contenido', document.getElementById('subseccionTipo').value);
+    formData.append('link', document.getElementById('subseccionLink').value);
+    formData.append('orden', document.getElementById('subseccionOrden').value);
+    formData.append('activo', document.getElementById('subseccionActivo').value);
+    
+    const archivo = document.getElementById('subseccionArchivo').files[0];
+    if (archivo) formData.append('archivo', archivo);
+    
+    try {
+        let url, method;
+        if (id) {
+            url = `/api/transparencia/subsecciones/actualizar/${id}`;
+            method = 'PUT';
+        } else {
+            url = '/api/transparencia/subsecciones/crear';
+            method = 'POST';
+        }
+        const response = await fetch(url, { method, body: formData });
+        const result = await response.json();
+        if (result.success) {
+            alert('Subsección guardada');
+            closeModal('subseccionModal');
+            cargarSeccionesAdmin();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+    }
+});
+    </script>
+</body>
+</html>

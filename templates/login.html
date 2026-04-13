@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin | Login</title>
+  <style>
+    body{font-family:system-ui;background:#0b1220;color:#eaf2ff;display:grid;place-items:center;height:100vh;margin:0}
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:18px;min-width:320px}
+    input{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#eaf2ff}
+    button{width:100%;padding:10px;border-radius:12px;border:0;background:linear-gradient(135deg,#1ea7ff,#22c55e);font-weight:900;cursor:pointer}
+    .muted{color:#b8c4da}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin-top:0">Admin</h2>
+    <p class="muted">Acceso de administrador.</p>
+
+    {% if error %}
+      <p style="color:#ffb4b4">{{error}}</p>
+    {% endif %}
+
+    <form method="post" action="/admin/login">
+      <label class="muted">Usuario</label>
+      <input name="user" required>
+      <br><br>
+      <label class="muted">Contraseña</label>
+      <input name="password" type="password" required>
+      <br><br>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</body>
+</html>
