@@ -676,6 +676,15 @@
                     <i class="fas fa-file-contract"></i>
                     Transparencia
                 </a>
+
+                <a href="#" class="nav-item" id="nav-noticias" onclick="loadNoticiasSection(); return false;">
+                    <i class="fas fa-newspaper"></i>
+                    Noticias
+                </a>
+                <a href="#" class="nav-item" id="nav-tarifas" onclick="loadTarifasSection(); return false;">
+                    <i class="fas fa-tags"></i>
+                    Tarifas
+                </a>
                 <a href="#" class="nav-item" id="nav-usuarios" onclick="showDevelopmentMessage('Usuarios'); return false;">
                     <i class="fas fa-users"></i>
                     Usuarios
@@ -955,6 +964,17 @@
         let currentPqrsId = null;
         let charts = {};
 
+        // ===== CONTROL DE SESIÓN EXPIRADA =====
+        function verificarSesionExpirada(response) {
+            if (response.status === 401) {
+                alert('Tu sesión ha expirado. Debes iniciar sesión nuevamente.');
+                window.location.href = '/admin/login';
+                return true;
+            }
+            return false;
+        }
+        
+
         // ===== FUNCIONES DE NAVEGACIÓN =====
         function setActiveNav(navId) {
             document.querySelectorAll('.nav-item').forEach(item => {
@@ -1042,7 +1062,9 @@
         async function loadAllPqrs() {
             try {
                 const response = await fetch('/api/pqrs/listar');
+                if (verificarSesionExpirada(response)) return;
                 const result = await response.json();
+
                 if (result.success) {
                     renderPqrsTable(result.data);
                 }
@@ -1060,8 +1082,9 @@
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');
+                if (verificarSesionExpirada(response)) return;
                 const result = await response.json();
-                
+                                
                 if (result.success) {
                     const data = result.data;
                     document.getElementById('total-pqrs').textContent = data.total || 0;
@@ -1138,7 +1161,10 @@
                     url = `/api/pqrs/buscar?q=${encodeURIComponent(searchTerm)}`;
                 }
                 const response = await fetch(url);
+                if (verificarSesionExpirada(response)) return;
                 const result = await response.json();
+
+
                 if (result.success) {
                     renderPqrsTable(result.data.slice(0, 10));
                 }
@@ -1193,6 +1219,7 @@
         async function viewPqrs(id) {
             try {
                 const response = await fetch(`/api/pqrs/${id}`);
+                if (verificarSesionExpirada(response)) return;
                 const result = await response.json();
                 if (result.success) {
                     const p = result.data;
@@ -1778,6 +1805,864 @@ document.getElementById('subseccionForm').addEventListener('submit', async funct
         alert('Error de conexión');
     }
 });
+
+// ============================================
+// SISTEMA ADMINISTRADOR DE NOTICIAS
+// ============================================
+
+function loadNoticiasSection() {
+
+    setActiveNav('nav-noticias');
+
+    updateSectionTitle(
+        'Noticias',
+        'Gestión de noticias e Instagram'
+    );
+
+    ocultarSeccionesDashboard();
+
+    const mainContent = document.querySelector('.main-content');
+
+    const existing = document.querySelector('.noticias-admin-section');
+
+    if (existing) existing.remove();
+
+    const section = document.createElement('div');
+
+    section.className = 'noticias-admin-section';
+
+    section.innerHTML = `
+        <div style="
+            background:white;
+            border-radius:20px;
+            padding:2rem;
+            box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);
+        ">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:2rem;
+                flex-wrap:wrap;
+                gap:1rem;
+            ">
+
+                <h2>
+                    <i class="fas fa-newspaper"></i>
+                    Gestión de Noticias
+                </h2>
+
+                <button onclick="abrirModalNoticia()"
+                    style="
+                        background:#FF5C00;
+                        color:white;
+                        border:none;
+                        padding:.9rem 1.5rem;
+                        border-radius:50px;
+                        cursor:pointer;
+                        font-weight:600;
+                    ">
+                    <i class="fas fa-plus"></i>
+                    Nueva noticia
+                </button>
+
+            </div>
+
+            <div id="noticias-lista">
+
+                <p style="
+                    text-align:center;
+                    color:#64748B;
+                    padding:2rem;
+                ">
+                    Cargando noticias...
+                </p>
+
+            </div>
+
+        </div>
+    `;
+
+    mainContent.insertBefore(
+        section,
+        document.querySelector('.search-section')
+    );
+
+    cargarNoticiasAdmin();
+}
+
+// ============================================
+// CARGAR NOTICIAS
+// ============================================
+
+async function cargarNoticiasAdmin() {
+
+    const container = document.getElementById('noticias-lista');
+
+    try {
+
+        const response = await fetch(
+            '/api/noticias/admin/listar'
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+
+            if (result.data.length === 0) {
+
+                container.innerHTML = `
+                    <p style="
+                        text-align:center;
+                        padding:3rem;
+                        color:#64748B;
+                    ">
+                        No hay noticias registradas.
+                    </p>
+                `;
+
+                return;
+            }
+
+            let html = '';
+
+            result.data.forEach(noticia => {
+
+                html += `
+                    <div style="
+                        background:#F8FAFC;
+                        border-radius:16px;
+                        padding:1.2rem;
+                        margin-bottom:1rem;
+                        border:1px solid #E2E8F0;
+                    ">
+
+                        <div style="
+                            display:flex;
+                            justify-content:space-between;
+                            gap:1rem;
+                            flex-wrap:wrap;
+                        ">
+
+                            <div style="flex:1;">
+
+                                <h3 style="
+                                    margin-bottom:.5rem;
+                                    color:#1E293B;
+                                ">
+                                    ${noticia.titulo}
+                                </h3>
+
+                                <p style="
+                                    color:#64748B;
+                                    margin-bottom:.8rem;
+                                ">
+                                    ${noticia.descripcion || ''}
+                                </p>
+
+                                <div style="
+                                    display:flex;
+                                    gap:.5rem;
+                                    flex-wrap:wrap;
+                                ">
+
+                                    <span style="
+                                        background:#DBEAFE;
+                                        color:#1E40AF;
+                                        padding:.3rem .8rem;
+                                        border-radius:50px;
+                                        font-size:.8rem;
+                                    ">
+                                        ${noticia.tipo}
+                                    </span>
+
+                                    ${noticia.activo == 1
+                                        ? `<span style="
+                                            background:#D1FAE5;
+                                            color:#065F46;
+                                            padding:.3rem .8rem;
+                                            border-radius:50px;
+                                            font-size:.8rem;
+                                        ">Activo</span>`
+                                        : `<span style="
+                                            background:#FEE2E2;
+                                            color:#991B1B;
+                                            padding:.3rem .8rem;
+                                            border-radius:50px;
+                                            font-size:.8rem;
+                                        ">Inactivo</span>`
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            <div style="
+                                display:flex;
+                                gap:.5rem;
+                                align-items:flex-start;
+                            ">
+
+                                ${noticia.enlace
+                                    ? `<a href="${noticia.enlace}"
+                                        target="_blank"
+                                        class="btn-view"
+                                        style="background:#317F3C;">
+                                        <i class="fas fa-eye"></i>
+                                    </a>`
+                                    : ''
+                                }
+
+                                <button
+                                    onclick="toggleNoticia(${noticia.id})"
+                                    class="btn-view"
+                                    style="
+                                        background:${noticia.activo == 1 ? '#F59E0B' : '#10B981'};
+                                    ">
+
+                                    <i class="fas ${noticia.activo == 1
+                                        ? 'fa-eye-slash'
+                                        : 'fa-eye'}"></i>
+
+                                 </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+    } catch(error) {
+
+        container.innerHTML = `
+            <p style="
+                text-align:center;
+                color:#EF4444;
+                padding:2rem;
+            ">
+                Error cargando noticias
+            </p>
+        `;
+    }
+}
+
+// ============================================
+// MODAL CREAR NOTICIA
+// ============================================
+
+function abrirModalNoticia() {
+
+    const modalHtml = `
+        <div class="modal active" id="noticiaModal">
+
+            <div class="modal-content"
+                style="max-width:650px;">
+
+                <div class="modal-header">
+
+                    <h3>
+                        <i class="fas fa-newspaper"></i>
+                        Nueva noticia
+                    </h3>
+
+                    <button class="close-btn"
+                        onclick="cerrarModalNoticia()">
+                        &times;
+                    </button>
+
+                </div>
+
+                <form id="noticiaForm">
+
+                    <div class="modal-body">
+
+                        <div class="form-group">
+                            <label>Título</label>
+                            <input type="text"
+                                id="noticiaTitulo"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea id="noticiaDescripcion"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tipo</label>
+
+                            <select id="noticiaTipo">
+
+                                <option value="instagram">
+                                    Instagram
+                                </option>
+
+                                <option value="interna">
+                                    Interna
+                                </option>
+
+                                <option value="externa">
+                                    Externa
+                                </option>
+
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Enlace</label>
+
+                            <input type="text"
+                                id="noticiaEnlace"
+                                placeholder="https://...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Orden</label>
+
+                            <input type="number"
+                                id="noticiaOrden"
+                                value="0">
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button type="submit"
+                            class="btn-save">
+
+                            <i class="fas fa-save"></i>
+
+                            Guardar noticia
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML(
+        'beforeend',
+        modalHtml
+    );
+
+    document.getElementById('noticiaForm')
+        .addEventListener(
+            'submit',
+            guardarNoticia
+        );
+}
+
+// ============================================
+// GUARDAR NOTICIA
+// ============================================
+
+async function guardarNoticia(e) {
+
+    e.preventDefault();
+
+    const formData = new FormData();
+
+    formData.append(
+        'titulo',
+        document.getElementById('noticiaTitulo').value
+    );
+
+    formData.append(
+        'descripcion',
+        document.getElementById('noticiaDescripcion').value
+    );
+
+    formData.append(
+        'tipo',
+        document.getElementById('noticiaTipo').value
+    );
+
+    formData.append(
+        'enlace',
+        document.getElementById('noticiaEnlace').value
+    );
+
+    formData.append(
+        'orden',
+        document.getElementById('noticiaOrden').value
+    );
+
+    try {
+
+        const response = await fetch(
+            '/api/noticias/crear',
+            {
+                method:'POST',
+                body:formData
+            }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+
+            alert('Noticia creada correctamente');
+
+            cerrarModalNoticia();
+
+            cargarNoticiasAdmin();
+
+        } else {
+
+            alert(result.error || 'Error');
+
+        }
+
+    } catch(error) {
+
+        alert('Error de conexión');
+
+    }
+}
+
+// ============================================
+// ACTIVAR / DESACTIVAR NOTICIA
+// ============================================
+
+async function toggleNoticia(id) {
+
+    try {
+
+        const response = await fetch(
+            '/api/noticias/toggle-activo/' + id,
+            {
+                method:'PUT'
+            }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+
+            cargarNoticiasAdmin();
+
+        } else {
+
+            alert(result.error || 'Error');
+
+        }
+
+    } catch(error) {
+
+        alert('Error de conexión');
+
+    }
+}
+
+// ============================================
+// ELIMINAR NOTICIA
+// ============================================
+
+async function eliminarNoticia(id) {
+
+    if (!confirm('¿Eliminar noticia?')) return;
+
+    try {
+
+        const response = await fetch(
+            '/api/noticias/eliminar/' + id,
+            {
+                method:'DELETE'
+            }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+
+            alert('Noticia eliminada');
+
+            cargarNoticiasAdmin();
+
+        } else {
+
+            alert(result.error || 'Error');
+
+        }
+
+    } catch(error) {
+
+        alert('Error de conexión');
+
+    }
+}
+
+// ============================================
+// CERRAR MODAL
+// ============================================
+
+function cerrarModalNoticia() {
+
+    const modal = document.getElementById(
+        'noticiaModal'
+    );
+
+    if (modal) modal.remove();
+}
+
+// ============================================
+// SISTEMA ADMINISTRADOR DE TARIFAS
+// ============================================
+
+function loadTarifasSection() {
+    setActiveNav('nav-tarifas');
+    updateSectionTitle('Tarifas', 'Gestión mensual de tarifas PDF');
+    ocultarSeccionesDashboard();
+
+    const mainContent = document.querySelector('.main-content');
+
+    const existing = document.querySelector('.tarifas-admin-section');
+    if (existing) existing.remove();
+
+    const section = document.createElement('div');
+    section.className = 'tarifas-admin-section';
+
+    section.innerHTML = `
+        <div style="
+            background:white;
+            border-radius:20px;
+            padding:2rem;
+            box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);
+        ">
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:2rem;
+                flex-wrap:wrap;
+                gap:1rem;
+            ">
+                <h2>
+                    <i class="fas fa-tags"></i>
+                    Gestión de Tarifas
+                </h2>
+
+                <button onclick="abrirModalTarifa()" style="
+                    background:#FF5C00;
+                    color:white;
+                    border:none;
+                    padding:.9rem 1.5rem;
+                    border-radius:50px;
+                    cursor:pointer;
+                    font-weight:600;
+                ">
+                    <i class="fas fa-plus"></i>
+                    Nueva tarifa
+                </button>
+            </div>
+
+            <div id="tarifas-lista">
+                <p style="text-align:center; color:#64748B; padding:2rem;">
+                    Cargando tarifas...
+                </p>
+            </div>
+        </div>
+    `;
+
+    mainContent.insertBefore(section, document.querySelector('.search-section'));
+    cargarTarifasAdmin();
+}
+
+async function cargarTarifasAdmin() {
+    const container = document.getElementById('tarifas-lista');
+
+    try {
+        const response = await fetch('/api/tarifas/admin/listar');
+        if (verificarSesionExpirada(response)) return;
+
+        const result = await response.json();
+
+        if (!result.success || !result.data || result.data.length === 0) {
+            container.innerHTML = `
+                <p style="text-align:center; padding:3rem; color:#64748B;">
+                    No hay tarifas registradas.
+                </p>
+            `;
+            return;
+        }
+
+        let html = `
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Año</th>
+                            <th>Mes</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>PDF</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        result.data.forEach(tarifa => {
+            html += `
+                <tr>
+                    <td><strong>${tarifa.anio}</strong></td>
+                    <td>${nombreMes(tarifa.mes)}</td>
+                    <td>${escapeHtml(tarifa.nombre)}</td>
+                    <td>${escapeHtml(tarifa.descripcion || '')}</td>
+                    <td>
+                        ${tarifa.activo == 1
+                            ? '<span class="status-badge status-resuelto">Activa</span>'
+                            : '<span class="status-badge status-rechazado">Inactiva</span>'
+                        }
+                    </td>
+                    <td>
+                        <a href="/assets/documentos/${tarifa.archivo}" target="_blank" class="btn-view" style="background:#317F3C;">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="toggleTarifa(${tarifa.id})" class="btn-view" style="background:${tarifa.activo == 1 ? '#F59E0B' : '#10B981'};">
+                                <i class="fas ${tarifa.activo == 1 ? 'fa-eye-slash' : 'fa-eye'}"></i>
+                            </button>
+
+                            <button onclick="eliminarTarifa(${tarifa.id})" class="btn-view" style="background:#EF4444;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error cargando tarifas:', error);
+        container.innerHTML = `
+            <p style="text-align:center; color:#EF4444; padding:2rem;">
+                Error cargando tarifas.
+            </p>
+        `;
+    }
+}
+
+function abrirModalTarifa() {
+    const currentYear = new Date().getFullYear();
+
+    const modalHtml = `
+        <div class="modal active" id="tarifaModal">
+            <div class="modal-content" style="max-width:650px;">
+                <div class="modal-header">
+                    <h3>
+                        <i class="fas fa-file-pdf"></i>
+                        Nueva tarifa
+                    </h3>
+                    <button class="close-btn" onclick="cerrarModalTarifa()">&times;</button>
+                </div>
+
+                <form id="tarifaForm" enctype="multipart/form-data">
+                    <div class="modal-body">
+
+                        <div class="form-group">
+                            <label>Año</label>
+                            <input type="number" id="tarifaAnio" value="${currentYear}" min="2020" max="2100" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mes</label>
+                            <select id="tarifaMes" required>
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" id="tarifaNombre" placeholder="Ej: Tarifas GLP Enero 2026" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea id="tarifaDescripcion" placeholder="Descripción opcional"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Orden</label>
+                            <input type="number" id="tarifaOrden" value="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Activo</label>
+                            <select id="tarifaActivo">
+                                <option value="1">Sí</option>
+                                <option value="0">No</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Archivo PDF</label>
+                            <input type="file" id="tarifaArchivo" accept=".pdf" required>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn-save">
+                            <i class="fas fa-save"></i>
+                            Guardar tarifa
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('tarifaForm').addEventListener('submit', guardarTarifa);
+}
+
+async function guardarTarifa(e) {
+    e.preventDefault();
+
+    const archivo = document.getElementById('tarifaArchivo').files[0];
+
+    if (!archivo) {
+        alert('Debe seleccionar un archivo PDF');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('anio', document.getElementById('tarifaAnio').value);
+    formData.append('mes', document.getElementById('tarifaMes').value);
+    formData.append('nombre', document.getElementById('tarifaNombre').value);
+    formData.append('descripcion', document.getElementById('tarifaDescripcion').value);
+    formData.append('orden', document.getElementById('tarifaOrden').value);
+    formData.append('activo', document.getElementById('tarifaActivo').value);
+    formData.append('archivo', archivo);
+
+    try {
+        const response = await fetch('/api/tarifas/crear', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (verificarSesionExpirada(response)) return;
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Tarifa creada correctamente');
+            cerrarModalTarifa();
+            cargarTarifasAdmin();
+        } else {
+            alert(result.error || 'Error al crear tarifa');
+        }
+
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+async function toggleTarifa(id) {
+    try {
+        const response = await fetch('/api/tarifas/toggle-activo/' + id, {
+            method: 'PUT'
+        });
+
+        if (verificarSesionExpirada(response)) return;
+
+        const result = await response.json();
+
+        if (result.success) {
+            cargarTarifasAdmin();
+        } else {
+            alert(result.error || 'Error al cambiar estado');
+        }
+
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+async function eliminarTarifa(id) {
+    if (!confirm('¿Eliminar esta tarifa? Esta acción eliminará también el PDF.')) return;
+
+    try {
+        const response = await fetch('/api/tarifas/eliminar/' + id, {
+            method: 'DELETE'
+        });
+
+        if (verificarSesionExpirada(response)) return;
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Tarifa eliminada');
+            cargarTarifasAdmin();
+        } else {
+            alert(result.error || 'Error al eliminar tarifa');
+        }
+
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+function cerrarModalTarifa() {
+    const modal = document.getElementById('tarifaModal');
+    if (modal) modal.remove();
+}
+
+function nombreMes(mes) {
+    const meses = {
+        1: 'Enero',
+        2: 'Febrero',
+        3: 'Marzo',
+        4: 'Abril',
+        5: 'Mayo',
+        6: 'Junio',
+        7: 'Julio',
+        8: 'Agosto',
+        9: 'Septiembre',
+        10: 'Octubre',
+        11: 'Noviembre',
+        12: 'Diciembre'
+    };
+
+    return meses[Number(mes)] || mes;
+}
+
+
     </script>
 </body>
 </html>

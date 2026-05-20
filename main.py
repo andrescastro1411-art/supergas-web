@@ -21,15 +21,28 @@ from starlette.middleware.sessions import SessionMiddleware
 # ============================================
 load_dotenv()
 
-ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
-SESSION_SECRET = os.getenv("SESSION_SECRET", "supergas-secret-key-2026")
+ADMIN_USER = os.getenv("ADMIN_USER")
+ADMIN_PASS = os.getenv("ADMIN_PASS")
+SESSION_SECRET = os.getenv("SESSION_SECRET")
+
+if not ADMIN_USER:
+    raise RuntimeError("Falta configurar ADMIN_USER en el archivo .env")
+
+if not ADMIN_PASS:
+    raise RuntimeError("Falta configurar ADMIN_PASS en el archivo .env")
+
+if not SESSION_SECRET:
+    raise RuntimeError("Falta configurar SESSION_SECRET en el archivo .env")
+
+if len(SESSION_SECRET) < 32:
+    raise RuntimeError("SESSION_SECRET debe tener al menos 32 caracteres")
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 TEMPLATES_DIR = BASE_DIR / "templates"
 DB_PATH = BASE_DIR / "app.db"
 DOCUMENTS_DIR = FRONTEND_DIR / "assets" / "documentos"
+CV_UPLOADS_DIR = BASE_DIR / "uploads" / "cv"
 
 TIPOS_PQRS_VALIDOS = ["Petición", "Queja", "Reclamo", "Sugerencia", "Denuncia"]
 ESTADOS_PQRS_VALIDOS = ["Pendiente", "Resuelto", "En Proceso", "Rechazado"]
@@ -40,8 +53,23 @@ ESTADOS_PQRS_VALIDOS = ["Pendiente", "Resuelto", "En Proceso", "Rechazado"]
 # ============================================
 app = FastAPI(title="Supergas de Nariño API", version="2.0.0")
 
-# Montar archivos estáticos
+# Montar archivos estáticos principales
 app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
+
+
+# Sección 2.1. Archivo robots.txt
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt():
+    robots_path = FRONTEND_DIR / "robots.txt"
+
+    if not robots_path.exists():
+        raise HTTPException(status_code=404, detail="robots.txt no encontrado")
+
+    return FileResponse(
+        robots_path,
+        media_type="text/plain"
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,10 +89,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, max_age=3600)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET,
+    max_age=3600,
+    same_site="lax",
+    https_only=False
+)
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+
+# Sección 2.2. Ruta sitemap.xml
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    sitemap_path = FRONTEND_DIR / "sitemap.xml"
+
+    if not sitemap_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="sitemap.xml no encontrado"
+        )
+
+    return FileResponse(
+        sitemap_path,
+        media_type="application/xml"
+    )
 
 # ============================================
 # 3. HELPERS GENERALES
@@ -82,8 +132,63 @@ def ok(data=None, message: Optional[str] = None, status_code: int = 200) -> JSON
     return JSONResponse(payload, status_code=status_code)
 
 
-def fail(error: str, status_code: int = 400) -> JSONResponse:
-    return JSONResponse({"success": False, "error": error}, status_code=status_code)
+def fail(
+    error: str,
+    status_code: int = 400,
+    details: Optional[dict] = None
+) -> JSONResponse:
+    payload = {
+        "success": False,
+        "error": error
+    }
+
+    if details:
+        payload["details"] = details
+
+    return JSONResponse(payload, status_code=status_code)
+
+# ============================================
+# 3.1 MANEJO GLOBAL DE ERRORES
+# ============================================
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.detail,
+            "path": str(request.url.path)
+        }
+    )
+
+
+@app.exception_handler(sqlite3.Error)
+async def sqlite_exception_handler(request: Request, exc: sqlite3.Error):
+    print(f"❌ Error SQLite en {request.url.path}: {exc}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Error interno de base de datos",
+            "path": str(request.url.path)
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    print(f"❌ Error inesperado en {request.url.path}: {exc}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Error interno del servidor",
+            "path": str(request.url.path)
+        }
+    )
+
 
 
 def sanitize_filename(filename: str) -> str:
@@ -116,6 +221,7 @@ def ensure_column(con: sqlite3.Connection, table_name: str, column_name: str, de
 
 def init_db() -> None:
     DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    CV_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
     with get_db() as con:
         # ============================================
@@ -233,6 +339,53 @@ def init_db() -> None:
             """
         )
 
+                # ============================================
+        # 4.8 TABLA NOTICIAS
+        # ============================================
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS noticias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                descripcion TEXT,
+                tipo TEXT DEFAULT 'instagram',
+                enlace TEXT,
+                imagen TEXT,
+                activo INTEGER DEFAULT 1,
+                orden INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT
+            )
+            """
+        )
+
+        con.execute("CREATE INDEX IF NOT EXISTS idx_noticias_activo ON noticias(activo)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_noticias_orden ON noticias(orden)")
+
+                # ============================================
+        # 4.9 TABLA TARIFAS
+        # ============================================
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tarifas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                anio INTEGER NOT NULL,
+                mes INTEGER NOT NULL,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                archivo TEXT NOT NULL,
+                activo INTEGER DEFAULT 1,
+                orden INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT
+            )
+            """
+        )
+
+        con.execute("CREATE INDEX IF NOT EXISTS idx_tarifas_anio ON tarifas(anio)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_tarifas_mes ON tarifas(mes)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_tarifas_activo ON tarifas(activo)")
+
         # ============================================
         # 4.7 ÍNDICES
         # ============================================
@@ -291,7 +444,10 @@ def is_logged(request: Request) -> bool:
 
 def require_login(request: Request) -> None:
     if not is_logged(request):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autorizado")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesión expirada o no autorizada"
+        )
 
 
 def verify_admin(user: str, password: str) -> bool:
@@ -309,18 +465,86 @@ def generar_radicado() -> str:
 # 6. MODELOS PYDANTIC
 # ============================================
 class PQRSIn(BaseModel):
-    tipo: str = Field(..., min_length=3, max_length=50)
-    nombre: str = Field(..., min_length=3, max_length=100)
-    documento: str = Field(..., min_length=5, max_length=20)
+    tipo: str
+    nombre: str
+    documento: str
     email: EmailStr
-    telefono: str = Field(..., min_length=7, max_length=20)
-    asunto: str = Field(..., min_length=5, max_length=200)
-    mensaje: str = Field(..., min_length=10, max_length=2000)
+    telefono: str
+    asunto: str
+    mensaje: str
 
     @validator("tipo")
     def validar_tipo(cls, v):
+        v = v.strip()
+
+        if not v:
+            raise ValueError("El tipo es obligatorio")
+
         if v not in TIPOS_PQRS_VALIDOS:
-            raise ValueError(f"Tipo debe ser uno de: {', '.join(TIPOS_PQRS_VALIDOS)}")
+            raise ValueError(
+                f"Tipo debe ser uno de: {', '.join(TIPOS_PQRS_VALIDOS)}"
+            )
+
+        return v
+
+    @validator("nombre")
+    def validar_nombre(cls, v):
+        v = v.strip()
+
+        if len(v) < 3:
+            raise ValueError("El nombre debe tener al menos 3 caracteres")
+
+        if len(v) > 100:
+            raise ValueError("El nombre no puede superar 100 caracteres")
+
+        return v
+
+    @validator("documento")
+    def validar_documento(cls, v):
+        v = v.strip()
+
+        if len(v) < 5:
+            raise ValueError("Documento inválido")
+
+        if len(v) > 20:
+            raise ValueError("Documento demasiado largo")
+
+        return v
+
+    @validator("telefono")
+    def validar_telefono(cls, v):
+        v = v.strip()
+
+        if len(v) < 7:
+            raise ValueError("Teléfono inválido")
+
+        if len(v) > 20:
+            raise ValueError("Teléfono demasiado largo")
+
+        return v
+
+    @validator("asunto")
+    def validar_asunto(cls, v):
+        v = v.strip()
+
+        if len(v) < 5:
+            raise ValueError("El asunto debe tener al menos 5 caracteres")
+
+        if len(v) > 200:
+            raise ValueError("El asunto es demasiado largo")
+
+        return v
+
+    @validator("mensaje")
+    def validar_mensaje(cls, v):
+        v = v.strip()
+
+        if len(v) < 10:
+            raise ValueError("El mensaje debe tener al menos 10 caracteres")
+
+        if len(v) > 2000:
+            raise ValueError("El mensaje es demasiado largo")
+
         return v
 
 
@@ -528,6 +752,58 @@ def eliminar_pqrs(pqrs_id: int, request: Request):
     if cursor.rowcount == 0:
         return fail("PQRS no encontrada", status_code=404)
     return ok(message="PQRS eliminada correctamente")
+
+# ============================================
+# 9.1 API ESTADÍSTICAS DEL DASHBOARD ADMIN
+# ============================================
+@app.get("/api/stats")
+def obtener_estadisticas_dashboard(request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        total = con.execute(
+            "SELECT COUNT(*) AS total FROM pqrs"
+        ).fetchone()["total"]
+
+        por_estado_raw = con.execute(
+            """
+            SELECT estado, COUNT(*) AS count
+            FROM pqrs
+            GROUP BY estado
+            """
+        ).fetchall()
+
+        por_tipo_raw = con.execute(
+            """
+            SELECT tipo, COUNT(*) AS count
+            FROM pqrs
+            GROUP BY tipo
+            """
+        ).fetchall()
+
+    estados_dict = {row["estado"]: row["count"] for row in por_estado_raw}
+    tipos_dict = {row["tipo"]: row["count"] for row in por_tipo_raw}
+
+    por_estado = [
+        {"estado": "Pendiente", "count": estados_dict.get("Pendiente", 0)},
+        {"estado": "En Proceso", "count": estados_dict.get("En Proceso", 0)},
+        {"estado": "Resuelto", "count": estados_dict.get("Resuelto", 0)},
+        {"estado": "Rechazado", "count": estados_dict.get("Rechazado", 0)},
+    ]
+
+    por_tipo = [
+        {"tipo": "Petición", "count": tipos_dict.get("Petición", 0)},
+        {"tipo": "Queja", "count": tipos_dict.get("Queja", 0)},
+        {"tipo": "Reclamo", "count": tipos_dict.get("Reclamo", 0)},
+        {"tipo": "Sugerencia", "count": tipos_dict.get("Sugerencia", 0)},
+        {"tipo": "Denuncia", "count": tipos_dict.get("Denuncia", 0)},
+    ]
+
+    return ok({
+        "total": total,
+        "por_estado": por_estado,
+        "por_tipo": por_tipo
+    })
 
 
 # ============================================
@@ -849,7 +1125,454 @@ async def eliminar_subseccion(subseccion_id: int, request: Request):
     
     return ok(message="Subsección eliminada correctamente")
 
+# ============================================
+# 11.1 API TRABAJA CON NOSOTROS
+# ============================================
+@app.post("/api/trabaja-con-nosotros")
+async def recibir_hoja_de_vida(
+    nombre: str = Form(...),
+    email: str = Form(...),
+    telefono: str = Form(...),
+    cargo: str = Form(...),
+    mensaje: Optional[str] = Form(None),
+    cv: UploadFile = File(...),
+):
+    nombre = nombre.strip()
+    email = email.strip()
+    telefono = telefono.strip()
+    cargo = cargo.strip()
+    mensaje = mensaje.strip() if mensaje else ""
 
+    if len(nombre) < 3:
+        return fail("El nombre debe tener al menos 3 caracteres", status_code=400)
+
+    if len(email) < 6 or "@" not in email:
+        return fail("Correo electrónico inválido", status_code=400)
+
+    if len(telefono) < 7:
+        return fail("Teléfono inválido", status_code=400)
+
+    if len(cargo) < 2:
+        return fail("Debe indicar el cargo al que aspira", status_code=400)
+
+    if not cv or not cv.filename:
+        return fail("Debe adjuntar hoja de vida en PDF", status_code=400)
+
+    if not cv.filename.lower().endswith(".pdf"):
+        return fail("La hoja de vida debe estar en formato PDF", status_code=400)
+
+    CV_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = sanitize_filename(cv.filename)
+    filename = f"cv_{timestamp}_{safe_name}"
+    file_path = CV_UPLOADS_DIR / filename
+
+    content = await cv.read()
+
+    if not content:
+        return fail("El archivo PDF está vacío", status_code=400)
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    print("=" * 60)
+    print("📩 NUEVA HOJA DE VIDA RECIBIDA")
+    print(f"Nombre: {nombre}")
+    print(f"Email: {email}")
+    print(f"Teléfono: {telefono}")
+    print(f"Cargo: {cargo}")
+    print(f"Mensaje: {mensaje}")
+    print(f"Archivo: {file_path}")
+    print("Enviar a: marca@supergas.com.co")
+    print("=" * 60)
+
+    return ok(
+        {
+            "archivo": filename,
+            "destino": "marca@supergas.com.co"
+        },
+        message="Hoja de vida recibida correctamente"
+    )
+
+# ============================================
+# 11.2 API NOTICIAS
+# ============================================
+@app.get("/api/noticias/listar")
+def listar_noticias_publicas():
+    with get_db() as con:
+        noticias = con.execute(
+            """
+            SELECT *
+            FROM noticias
+            WHERE activo = 1
+            ORDER BY orden ASC, created_at DESC
+            """
+        ).fetchall()
+
+    return ok([dict(n) for n in noticias])
+
+
+@app.get("/api/noticias/admin/listar")
+def listar_noticias_admin(request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        noticias = con.execute(
+            """
+            SELECT *
+            FROM noticias
+            ORDER BY orden ASC, created_at DESC
+            """
+        ).fetchall()
+
+    return ok([dict(n) for n in noticias])
+
+
+@app.post("/api/noticias/crear")
+async def crear_noticia(
+    request: Request,
+    titulo: str = Form(...),
+    descripcion: Optional[str] = Form(None),
+    tipo: str = Form("instagram"),
+    enlace: Optional[str] = Form(None),
+    imagen: Optional[str] = Form(None),
+    orden: int = Form(0),
+    activo: int = Form(1),
+):
+    require_login(request)
+
+    titulo = titulo.strip()
+    descripcion = descripcion.strip() if descripcion else ""
+    tipo = tipo.strip()
+    enlace = enlace.strip() if enlace else ""
+    imagen = imagen.strip() if imagen else ""
+
+    if len(titulo) < 3:
+        return fail("El título debe tener al menos 3 caracteres", status_code=400)
+
+    tipos_validos = ["instagram", "interna", "externa"]
+
+    if tipo not in tipos_validos:
+        return fail(
+            "Tipo de noticia inválido. Usa: instagram, interna o externa",
+            status_code=400
+        )
+
+    created_at = now_iso()
+
+    with get_db() as con:
+        con.execute(
+            """
+            INSERT INTO noticias
+            (titulo, descripcion, tipo, enlace, imagen, orden, activo, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                titulo,
+                descripcion,
+                tipo,
+                enlace,
+                imagen,
+                orden,
+                activo,
+                created_at
+            )
+        )
+
+        con.commit()
+
+    return ok(message="Noticia creada correctamente", status_code=201)
+
+
+@app.put("/api/noticias/actualizar/{noticia_id}")
+async def actualizar_noticia(
+    noticia_id: int,
+    request: Request,
+    titulo: str = Form(...),
+    descripcion: Optional[str] = Form(None),
+    tipo: str = Form("instagram"),
+    enlace: Optional[str] = Form(None),
+    imagen: Optional[str] = Form(None),
+    orden: int = Form(0),
+    activo: int = Form(1),
+):
+    require_login(request)
+
+    titulo = titulo.strip()
+    descripcion = descripcion.strip() if descripcion else ""
+    tipo = tipo.strip()
+    enlace = enlace.strip() if enlace else ""
+    imagen = imagen.strip() if imagen else ""
+
+    if len(titulo) < 3:
+        return fail("El título debe tener al menos 3 caracteres", status_code=400)
+
+    tipos_validos = ["instagram", "interna", "externa"]
+
+    if tipo not in tipos_validos:
+        return fail(
+            "Tipo de noticia inválido. Usa: instagram, interna o externa",
+            status_code=400
+        )
+
+    updated_at = now_iso()
+
+    with get_db() as con:
+        noticia = con.execute(
+            "SELECT id FROM noticias WHERE id = ?",
+            (noticia_id,)
+        ).fetchone()
+
+        if not noticia:
+            return fail("Noticia no encontrada", status_code=404)
+
+        con.execute(
+            """
+            UPDATE noticias
+            SET titulo = ?,
+                descripcion = ?,
+                tipo = ?,
+                enlace = ?,
+                imagen = ?,
+                orden = ?,
+                activo = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                titulo,
+                descripcion,
+                tipo,
+                enlace,
+                imagen,
+                orden,
+                activo,
+                updated_at,
+                noticia_id
+            )
+        )
+
+        con.commit()
+
+    return ok(message="Noticia actualizada correctamente")
+
+
+@app.delete("/api/noticias/eliminar/{noticia_id}")
+def eliminar_noticia(noticia_id: int, request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        cursor = con.execute(
+            "DELETE FROM noticias WHERE id = ?",
+            (noticia_id,)
+        )
+
+        con.commit()
+
+    if cursor.rowcount == 0:
+        return fail("Noticia no encontrada", status_code=404)
+
+    return ok(message="Noticia eliminada correctamente")
+
+@app.put("/api/noticias/toggle-activo/{noticia_id}")
+def toggle_noticia_activa(noticia_id: int, request: Request):
+    require_login(request)
+
+    with get_db() as con:
+
+        noticia = con.execute(
+            "SELECT id, activo FROM noticias WHERE id = ?",
+            (noticia_id,)
+        ).fetchone()
+
+        if not noticia:
+            return fail("Noticia no encontrada", status_code=404)
+
+        nuevo_estado = 0 if noticia["activo"] == 1 else 1
+
+        con.execute(
+            """
+            UPDATE noticias
+            SET activo = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                nuevo_estado,
+                now_iso(),
+                noticia_id
+            )
+        )
+
+        con.commit()
+
+    return ok(
+        {
+            "activo": nuevo_estado
+        },
+        message="Estado actualizado correctamente"
+    )
+
+# ============================================
+# 11.3 API TARIFAS
+# ============================================
+@app.get("/api/tarifas/listar")
+def listar_tarifas_publicas():
+    with get_db() as con:
+        tarifas = con.execute(
+            """
+            SELECT *
+            FROM tarifas
+            WHERE activo = 1
+            ORDER BY anio DESC, mes DESC, orden ASC
+            """
+        ).fetchall()
+
+    return ok([dict(t) for t in tarifas])
+
+
+@app.get("/api/tarifas/admin/listar")
+def listar_tarifas_admin(request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        tarifas = con.execute(
+            """
+            SELECT *
+            FROM tarifas
+            ORDER BY anio DESC, mes DESC, orden ASC
+            """
+        ).fetchall()
+
+    return ok([dict(t) for t in tarifas])
+
+
+@app.post("/api/tarifas/crear")
+async def crear_tarifa(
+    request: Request,
+    anio: int = Form(...),
+    mes: int = Form(...),
+    nombre: str = Form(...),
+    descripcion: Optional[str] = Form(None),
+    orden: int = Form(0),
+    activo: int = Form(1),
+    archivo: UploadFile = File(...),
+):
+    require_login(request)
+
+    nombre = nombre.strip()
+    descripcion = descripcion.strip() if descripcion else ""
+
+    if anio < 2020 or anio > 2100:
+        return fail("Año inválido", status_code=400)
+
+    if mes < 1 or mes > 12:
+        return fail("Mes inválido", status_code=400)
+
+    if len(nombre) < 3:
+        return fail("El nombre debe tener al menos 3 caracteres", status_code=400)
+
+    if not is_pdf_upload(archivo):
+        return fail("Solo se permiten archivos PDF", status_code=400)
+
+    DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_filename = sanitize_filename(archivo.filename)
+    filename = f"tarifa_{anio}_{mes:02d}_{timestamp}_{safe_filename}"
+    file_path = DOCUMENTS_DIR / filename
+
+    content = await archivo.read()
+
+    if not content:
+        return fail("El archivo PDF está vacío", status_code=400)
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    created_at = now_iso()
+
+    with get_db() as con:
+        con.execute(
+            """
+            INSERT INTO tarifas
+            (anio, mes, nombre, descripcion, archivo, activo, orden, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                anio,
+                mes,
+                nombre,
+                descripcion,
+                filename,
+                activo,
+                orden,
+                created_at
+            )
+        )
+        con.commit()
+
+    return ok(message="Tarifa creada correctamente", status_code=201)
+
+
+@app.put("/api/tarifas/toggle-activo/{tarifa_id}")
+def toggle_tarifa_activa(tarifa_id: int, request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        tarifa = con.execute(
+            "SELECT id, activo FROM tarifas WHERE id = ?",
+            (tarifa_id,)
+        ).fetchone()
+
+        if not tarifa:
+            return fail("Tarifa no encontrada", status_code=404)
+
+        nuevo_estado = 0 if tarifa["activo"] == 1 else 1
+
+        con.execute(
+            """
+            UPDATE tarifas
+            SET activo = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (nuevo_estado, now_iso(), tarifa_id)
+        )
+
+        con.commit()
+
+    return ok(
+        {"activo": nuevo_estado},
+        message="Estado de tarifa actualizado correctamente"
+    )
+
+
+@app.delete("/api/tarifas/eliminar/{tarifa_id}")
+def eliminar_tarifa(tarifa_id: int, request: Request):
+    require_login(request)
+
+    with get_db() as con:
+        tarifa = con.execute(
+            "SELECT * FROM tarifas WHERE id = ?",
+            (tarifa_id,)
+        ).fetchone()
+
+        if not tarifa:
+            return fail("Tarifa no encontrada", status_code=404)
+
+        file_path = DOCUMENTS_DIR / tarifa["archivo"]
+
+        if file_path.exists():
+            file_path.unlink()
+
+        con.execute(
+            "DELETE FROM tarifas WHERE id = ?",
+            (tarifa_id,)
+        )
+
+        con.commit()
+
+    return ok(message="Tarifa eliminada correctamente")
 
 # ============================================
 # 12. HEALTH CHECK
@@ -863,6 +1586,14 @@ def health_check():
     except Exception as e:
         return {"status": "unhealthy", "database": "disconnected", "error": str(e), "timestamp": datetime.now().isoformat()}
 
+
+
+# Sección 12.1. Montaje final del frontend
+app.mount(
+    "/",
+    StaticFiles(directory=str(FRONTEND_DIR), html=True),
+    name="frontend"
+)
 
 # ============================================
 # 13. EJECUTAR SERVIDOR

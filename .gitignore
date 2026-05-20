@@ -1,0 +1,21 @@
+# ENTORNO VIRTUAL
+venv/
+
+# VARIABLES DE ENTORNO
+.env
+
+# CACHE PYTHON
+__pycache__/
+*.pyc
+
+# BASE DE DATOS
+*.db
+
+# LOGS
+*.log
+
+# WINDOWS
+Thumbs.db
+
+# MAC
+.DS_Store
